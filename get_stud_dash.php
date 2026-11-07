@@ -1,11 +1,7 @@
 <?php
-
 include "config.php";
-
 header("Content-Type: application/json");
-
 $regno = $_POST['regno'] ?? '';
-
 if ($regno == '') {
     http_response_code(400);
     echo json_encode([
@@ -15,7 +11,6 @@ if ($regno == '') {
     exit;
 }
 
-/* Get student and group */
 
 $sql = "
 SELECT
@@ -25,18 +20,34 @@ SELECT
     s.dept,
     s.year,
     s.section,
+
     gm.group_id,
     gm.is_leader,
+
     g.group_name,
     g.village_name,
     g.orientation_date,
     g.one_day_visit,
     g.camp_date,
     g.total_hours,
-    g.completed_hours
+    g.completed_hours,
+    g.faculty_id,
+
+    c.coordinator_name,
+    c.contact_number AS coordinator_contact,
+    c.email
+
 FROM students s
-JOIN group_members gm ON s.regno = gm.regno
-JOIN shepherd_groups g ON gm.group_id = g.group_id
+
+JOIN group_members gm
+    ON s.regno = gm.regno
+
+JOIN shepherd_groups g
+    ON gm.group_id = g.group_id
+
+JOIN coordinators c
+    ON g.faculty_id = c.faculty_id
+
 WHERE s.regno = ?
 ";
 
@@ -55,11 +66,11 @@ if ($result->num_rows == 0) {
     exit;
 }
 
-$student = $result->fetch_assoc();
+$data = $result->fetch_assoc();
 
-$group_id = $student['group_id'];
+$group_id = $data['group_id'];
 
-/* Get plans and paid bill details */
+/* Get visit plans and paid bill details */
 
 $sql = "
 SELECT
@@ -113,32 +124,46 @@ while ($row = $result->fetch_assoc()) {
     ];
 }
 
+/* Final dashboard response */
+
+http_response_code(200);
+
 echo json_encode([
+
     "status" => true,
-    "message" => "Dashboard fetched successfully",
+
+    "message" => "Student dashboard fetched successfully",
 
     "student" => [
-        "regno" => $student['regno'],
-        "stud_name" => $student['stud_name'],
-        "contact_number" => $student['contact_number'],
-        "dept" => $student['dept'],
-        "year" => $student['year'],
-        "section" => $student['section'],
-        "is_leader" => $student['is_leader']
+        "regno" => $data['regno'],
+        "stud_name" => $data['stud_name'],
+        "contact_number" => $data['contact_number'],
+        "dept" => $data['dept'],
+        "year" => $data['year'],
+        "section" => $data['section'],
+        "is_leader" => $data['is_leader']
     ],
 
     "group" => [
-        "group_id" => $student['group_id'],
-        "group_name" => $student['group_name'],
-        "village_name" => $student['village_name'],
-        "orientation_date" => $student['orientation_date'],
-        "one_day_visit" => $student['one_day_visit'],
-        "camp_date" => $student['camp_date'],
-        "total_hours" => $student['total_hours'],
-        "completed_hours" => $student['completed_hours']
+        "group_id" => $data['group_id'],
+        "group_name" => $data['group_name'],
+        "village_name" => $data['village_name'],
+        "orientation_date" => $data['orientation_date'],
+        "one_day_visit" => $data['one_day_visit'],
+        "camp_date" => $data['camp_date'],
+        "total_hours" => $data['total_hours'],
+        "completed_hours" => $data['completed_hours']
+    ],
+
+    "coordinator" => [
+        "faculty_id" => $data['faculty_id'],
+        "coordinator_name" => $data['coordinator_name'],
+        "contact_number" => $data['coordinator_contact'],
+        "email" => $data['email']
     ],
 
     "plans" => $plans
+
 ]);
 
 ?>
